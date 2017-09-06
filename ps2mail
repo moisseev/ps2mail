@@ -1,0 +1,732 @@
+#!/usr/local/bin/perl
+
+use strict;
+use warnings;
+
+use Getopt::Long qw( :config pass_through no_auto_abbrev );
+use Encode qw/encode decode/;
+use Email::Address;
+use Email::Valid;
+use IO::Interactive qw(is_interactive interactive);
+use MIME::Lite;
+use Sys::Syslog;
+use Pod::Usage;
+
+# CONSTANTS you must check
+use constant {
+    CONF   => '/usr/local/etc/ps2mail.conf',  # ps2mail configuration file
+    GS     => '/usr/local/bin/gs',            # GostScript interpreter
+    PS2PDF => '/usr/local/bin/ps2pdf',        # Command to convert PS to PDF
+    TMPDIR => '/tmp',                         # Directory for temporary PS files
+};
+
+# CONSTANTS you can alter but should consider not to
+my $mail_from_tag = 'From\s?\:';    # the string to look for an emailaddress
+my $mail_to_tag   = 'To\s?\:';      # the string to look for an emailaddress
+my $ps_file  = TMPDIR . "/ps2mail.$$.ps";     # temporary postscript file
+my $pdf_file = TMPDIR . "/ps2mail.$$.pdf";    # temporary pdf file
+
+####### from here on, leave the code alone, unless you are really sure #########
+
+my $metadata    = '';    # raw metadata (text between start and end tags)
+my $is_fallback = 0;     # Fallback tags were used
+
+our ( $opt_test, $opt_help, $opt_man );
+GetOptions( 'test=s', 'help|?', 'man' );
+pod2usage( -verbose => 1 ) if $opt_help;
+pod2usage( -verbose => 2 ) if $opt_man;
+
+### IPC with functional test routine
+my $fh_log;
+if ($opt_test) {
+    open( $fh_log, '>', $opt_test )
+      or die "Could not open named pipe $opt_test: $!";
+}
+
+# check some dependencies
+unless ( -d TMPDIR ) {
+    log_it( "Error: temporary directory not found: " . TMPDIR );
+    exit 2;
+}
+unless ( -w TMPDIR ) {
+    log_it( "Error: temporary directory not writable: " . TMPDIR );
+    exit 2;
+}
+unless ( -e GS ) {
+    log_it( "Error: ghostscript not found: " . GS );
+    exit 2;
+}
+unless ( -e PS2PDF ) {
+    log_it( "Error: ps2pdf not found: " . PS2PDF );
+    exit 2;
+}
+print {interactive} "
+ -- Dependencies ok\n";
+
+our %Conf;
+&get_config( $opt_test ? './ps2mail.conf' : CONF );
+
+print {interactive} " -- Configuration loaded
+
+Type in PostScript code, end with EOT (press ^D):
+
+";
+
+# use this address unless "From:" is recognized:
+my $from = $Conf{default_from};
+
+#  If user removes the job, LPD will send SIGINT, so trap SIGINT
+#  (and a few other signals) to clean up after ourselves.
+$SIG{'HUP'} = $SIG{'INT'} = $SIG{'TERM'} = \&int_handler;
+
+log_it("print job: @ARGV");
+
+&save_postscript_data;
+
+system( PS2PDF, '-sstdout=%stdout', $ps_file, $pdf_file ) == 0
+  or &abort_job("ps2pdf failed: $?");
+
+unless ( &get_metadata( $Conf{start_tag}, $Conf{end_tag} ) ) {
+    ( $Conf{fallback_tags_enabled} ) || &abort_job('tags not found');
+
+    log_it("tags not found, searching for fallback tags");
+
+    &abort_job('fallback tags not found')
+      unless (
+        &get_metadata( $Conf{fallback_start_tag}, $Conf{fallback_end_tag} ) );
+    $is_fallback = 1;
+}
+
+my ( $format, @to ) = &get_to;
+$from = &get_mail_from
+  if ( $format eq 'full' );
+
+&send_mail( 'delivery', $Conf{subject}, $Conf{body} );
+
+&clean_up;    # Delete the temp files in any case
+exit 0;       # The filter printed the file successfully
+
+#===============================================================================
+# Subroutines
+#===============================================================================
+
+sub abort_job {
+    my ($msg) = @_;
+    &log_and_notify( 'error', "job aborted: $msg" );
+    &clean_up;
+
+    # The filter failed to print and does not want LPD to try again.
+    # LPD will throw out the file.
+    exit 2;
+}
+
+sub save_postscript_data {    # saves the piped doc to the tmp file
+    open my $fh, '>', $ps_file
+      || die("\nCould not open temporary file $ps_file: $!\n");
+    while (<STDIN>) {
+        print $fh $_;
+    }
+    close $fh;
+}
+
+sub get_metadata {
+    my ( $start_tag, $end_tag ) = @_;
+    my $ret             = 0;
+    my $start_tag_found = 0;
+    my $end_tag_found   = 0;
+
+    # A command to convert 1st page of the PostScript document to ASCII
+    my $ps2ascii = GS . ' -q -dSAFER -sDEVICE=txtwrite -dLastPage=1 -o -';
+
+    open( my $fh, '-|', "timeout 10 $ps2ascii $ps_file" )
+      || die $!;
+    while (<$fh>) {
+        chomp;
+        next
+          unless ( $start_tag_found
+            || ( $start_tag_found = s/.*?$start_tag//i ) );
+        $end_tag_found = s/$end_tag.*//;
+        $metadata .= ' ' . $_;
+        $ret++;
+        if ($end_tag_found) {
+            log_it("meta: $metadata");
+            last;
+        }
+    }
+    continue {
+        # End of pg. 1 - do not process other pages
+        if (/%%\[Page: 1\]%%$/) {
+            log_it("end of page 1 reached");
+            last;
+        }
+    }
+
+    # $? is the status returned by the last pipe close, backtick (\`\`) command
+    # or system operator.
+    # Exit value of the subprocess is actually ($? >> 8)
+    # Exit status is 141 >> 8 = 36096 because of ps2ascii killed
+    # with the SIGPIPE signal
+
+    # Exit status 124 -> ps2ascii killed by 'timeout(1)'
+
+    close $fh
+      || ( $? == 36096 )
+      || log_it(
+        $!
+        ? "Error: Closing ps2ascii pipe failed: $!"
+        : "Error: Exit status " . ( $? >> 8 ) . " from ps2ascii"
+      );
+
+    return $ret;
+}
+
+sub get_mail_from {
+
+    # Take the 1st found only, ignore the rest.
+    # Remove trailing and leading spaces.
+    if ( $metadata =~
+/$mail_from_tag\s*($Email::Address::addr_spec|$Email::Address::name_addr)/i
+      )
+    {
+        my $detected_from = ( Email::Address->parse($1) )[0];
+
+        &check_email( $detected_from->address );
+        return $detected_from;
+    }
+    else {
+        # From: tag found but address unrecognized
+        &abort_job('bad sender address')
+          if ( $metadata =~ /$mail_from_tag/i );
+        log_it("sender not found, fallback to defaults");
+        return $Conf{default_from};
+    }
+}
+
+sub get_to {
+    my ( @to_str, $format );
+    my $fallback_tag = $is_fallback ? $Conf{mail_to_fallback_tag} : '';
+
+    # Search for simplified or fallback "mail to",
+    # remove trailing and leading spaces.
+    if ( @to_str =
+        $metadata =~
+        /^\s*$fallback_tag((?:$Email::Address::addr_spec(?:\s*[,;]\s*)?)+)\s*$/i
+      )
+    {
+        $format = 'simple';
+    }
+    else {
+        &abort_job('could not extract mail recipient (simple)')
+          if $is_fallback;
+
+        # The regexp with /g modifier returns content of muitiple To: as a list
+        @to_str = $metadata =~
+/$mail_to_tag\s*((?:(?:$Email::Address::addr_spec|$Email::Address::name_addr)(?:\s*[,;]\s*)?)+).*?(?=$mail_to_tag|$mail_from_tag|$)/gi;
+
+        &abort_job('could not extract mail recipient (full)')
+          unless (@to_str);
+
+        $format = 'full';
+    }
+
+    my @tos = Email::Address->parse( join( ',', @to_str ) );
+    &check_email( $_->address ) foreach (@tos);
+    return ( $format, @tos );
+}
+
+sub check_email {
+    my ($address) = @_;
+
+    &abort_job("invalid address: $address ($Email::Valid::Details)")
+      unless (
+        Email::Valid->address(
+            -address  => $address,
+            -tldcheck => 1,
+            -mxcheck  => 1,
+        )
+      );
+}
+
+# say &invalid_email('moiseev@mezonplus.ru');
+
+sub invalid_email {
+    my ($address) = @_;
+
+    Email::Valid->address(
+        -address  => $address,
+        -tldcheck => 1,
+        -mxcheck  => 1,
+    ) ? 0 : $Email::Valid::Details;
+}
+
+sub send_mail {
+    my ( $type, $subject, $body ) = @_;
+
+    ### For errors sender's display name is lpd filter,
+    ### sender's address is default_from and recipient is job originator
+    if ( $type ne 'delivery' ) {
+        @to   = ($from);
+        $from = Email::Address->new(
+            'ps2mail lpd filter',
+            $Conf{default_from}->address,
+        );
+    }
+
+    ### Encode headers
+    foreach ($subject) {
+        next
+          unless /[^\x00-\x7f]/;    # There are no non-ascii characters
+        $_ = encode( 'MIME-Header', decode( 'UTF-8', $_ ) );
+    }
+    foreach ( $from, @to ) {
+        next
+          unless /[^\x00-\x7f]/;    # There are no non-ascii characters
+        $_->phrase( encode( 'MIME-Header', decode( 'UTF-8', $_->phrase ) ) );
+    }
+
+    ### Create the multipart "container":
+    my $msg = MIME::Lite->new(
+        From => ( defined $from->phrase )
+        ? $from->phrase . ' <' . $from->address . '>'
+        : $from->address,
+
+        To => join(
+            ', ',
+            map {
+                ( defined $_->phrase )
+                  ? $_->phrase . ' <' . $_->address . '>'
+                  : $_->address;
+            } @to
+        ),
+        Subject => $subject,
+        Type    => 'multipart/mixed',
+    );
+
+    $msg->add( 'Disposition-Notification-To' => $from->address ) if $Conf{mdn};
+
+    ### Add the text message part:
+    utf8::upgrade($body);
+    $msg->attach(
+        Type => 'text/plain; charset=UTF-8',
+        Data => $body,
+    );
+
+    ### Add the file part (if pdf file exists):
+    $msg->attach(
+        Type        => 'application/pdf',
+        Path        => $pdf_file,
+        Filename    => 'doc.pdf',
+        Disposition => 'attachment'
+    ) if ( -f $pdf_file );
+
+    my $dsn_args = my $bcc_status = my $bcc_log = '';
+
+    if ( $type eq 'delivery' ) {
+        $dsn_args = ' -N delay,failure,success'
+          if $Conf{dsn};
+
+        if ( $Conf{bcc2sender} ) {
+            my $bcc_addr =
+              $from->address =~ s/(?:[+].+)?@/+$Conf{bccExtension}@/r;
+            if ( $Conf{dsn} ) {
+
+                # Send a message to Bcc recipient separately to avoid DSN.
+                $bcc_log = "bcc(apart)=$bcc_addr, ";
+                $bcc_status = '/' . &send_by_sendmail( $msg, $bcc_addr );
+            }
+            else {
+
+                # Add sender (with address extension) to Bcc
+                $bcc_log = "bcc=$bcc_addr, ";
+                $msg->add(
+                    Bcc => ( $from->phrase eq '' )
+                    ? $bcc_addr
+                    : $from->phrase . " <$bcc_addr>",
+                );
+            }
+        }
+    }
+
+    my $status = &send_by_sendmail( $msg, "-t $dsn_args" );
+
+    log_it( "sendmail($type): from="
+          . $from->address . ", to="
+          . $to[0]->address
+          . ", rcpt="
+          . @to
+          . ", ${bcc_log}status=$status$bcc_status" );
+
+    return 1;    # sub result always true
+}
+
+sub send_by_sendmail {
+    my ( $msg, $args ) = @_;
+    my $base_args = '-oi -oem -f ' . $from->address;
+
+    # We need to explicitly specify sendmail command to sent "apart" Bcc.
+    # Otherwise MIME::Lite adds the sender to sendmail arguments.
+    MIME::Lite->send( 'sendmail', "/usr/sbin/sendmail $base_args $args" );
+    return 'sent'
+      if $opt_test;
+    $msg->send
+      unless ( $Conf{debug} > 1 );
+
+    # The message had not been used to send yet
+    return 'undef'
+      unless defined $msg->last_send_successful;
+
+    $msg->last_send_successful ? 'sent' : 'error';
+}
+
+sub get_config {
+    unless ( my $ret = do "@_" ) {
+        warn "Couldn't execute @_: $@" if $@;
+        warn "Couldn't open @_: $!"    if $!;
+        die;
+    }
+}
+
+sub log_it {
+    if ( is_interactive() ) {
+        print @_, "\n";
+    }
+    elsif ($opt_test) {
+        print $fh_log @_, "\n";
+    }
+    else {
+        openlog( 'lpd-ps2mail', 'pid', 'user' );
+        syslog( 'info', @_ );
+        closelog();
+    }
+}
+
+sub log_and_notify {
+    my ( $type, $msg ) = @_;
+    log_it($msg);
+    &send_mail( $type, $Conf{subject_notification}, $msg );
+}
+
+sub clean_up {
+    unlink $ps_file || warn "Could not unlink $ps_file: $!";
+    -f $pdf_file && unlink $pdf_file || warn "Could not unlink $pdf_file: $!";
+    if ($opt_test) {
+        close($fh_log) || die "Could not close named pipe $opt_test: $!";
+    }
+}
+
+sub int_handler {
+    my ($signal) = @_;
+    log_it("\nCaught $signal signal. Shutting down.");
+    &clean_up;
+    die "$!\n";
+}
+
+__END__
+
+
+=head1 NAME
+
+ps2mail - print-to-email lpd(8) input filter
+
+=head1 SYNOPSIS
+
+B<ps2mail> [--test I<named_pipe>] [lpd filter options]
+
+B<ps2mail> [--help|--man]
+
+=head1 DESCRIPTION
+
+B<ps2mail> - is an lpd(8) text filter (input filter) that converts any document
+printed on virtual lpd(8) printer to PDF and sends it as an e-mail attachment.
+
+B<ps2mail> uses addresses incorporated in the text of the document to route
+e-mails providing a simple way to send e-mails from any application that can
+print.
+
+The filter reads the PostScript document from I<stdin>, extracts metadata
+(sender address, recipient address, etc.) from its text, converts the
+PostScript document to PDF and sends it to extracted recipients as an e-mail
+attachment.
+
+=head2 Features
+
+=over
+
+=item *
+
+Allow multiple e-mail destinations for a print job.
+
+=item *
+
+Log using syslog(3).
+
+=item *
+
+Supports YajHFC Batch Printer and Mail plugin address format
+
+=back
+
+=head2 Compatible printer drivers
+
+You can print from any application and on any OS. However, the metadata needs
+to be recognizable by Ghostscript's B<txtwrite> device to extract it from the
+document. So you need to use B<certain> PostScript printer drivers. The
+PostScript printer driver and the application should both actually write text
+to the device context (not text rendered as vectors).
+
+For 32-bit Windows XP almost any PostScript driver should work, e.g.
+
+    Apple LaserWriter 16/600 PS
+
+For 64-bit Windows 7 or later following drivers should work:
+
+    Samsung B/W Laser PS Class Driver
+    HP Universal Printing PS (v6.4.1)
+
+=head2 Mail addresses recognition
+
+The filter detects e-mail addresses in the text at the first page between start
+and end tags ( 'B<0(ojo)0 {>' and 'B<}>' are defaults ).
+
+E-mail addresses need to be labeled with B<To:> and B<From:> . Any number of
+B<To:> labels and any order of labels are allowed.
+
+If B<From:> address is omitted, the configured default sender address is used.
+
+Following separators are allowed between addresses:
+
+=over 4
+
+=item B<,>
+
+=item B<;> (not recommended - RFC violation)
+
+=back
+
+Usage of line breaks instead of separators is not allowed. All "spacing"
+symbols (spaces, tabs, line breaks and so on) are ignored.
+
+Font settings does not affect metadata recognition. So you can make metadata
+invisible for recipient by using very small font or font of the same color as
+the document background.
+
+    ... some text ... 0(ojo)0 {From: from@example.org To: rcpt@example.net} ... some text ...
+
+    ... some text ...
+    0(ojo)0 {
+    From: John Doe <from@example.org>
+    To: rcpt@example.net, Jane Doe <rcpt1@example.com>
+    To: rcpt2@example.com
+    }
+    ... some text ...
+
+There is also a simplified form. If just an e-mail address found between tags,
+it is considered as B<To:> address and the configured default sender address is
+used as B<From:> address.
+
+    ... some text ... 0(ojo)0 {rcpt@example.net} ... some text ...
+
+=head2 Fallback mode
+
+The fallback mode is intended to provide compatibility with a legacy metadata
+format. Namely "YajHFC Batch Printer and Mail plugin" format. If tags were not
+found in the document, B<ps2mail> tries to find another set of tags - fallback
+tags: B<@@> and B<@@> .
+
+In the fallback mode only recipient addresses are recognized. They should be
+labeled with B<mailrecipient:> or B<mail:> . Only addresses without display
+names are allowed.
+
+    @@mailrecipient:rcpt1@example.net@@
+
+    @@mailrecipient:rcpt1@example.net, rcpt2@example.org@@
+
+Simplified form is also supported.
+
+=head1 OPTIONS
+
+=over
+
+=item B<--test> I<named_pipe>
+
+run B<ps2mail> in functional test mode and use the specified I<named_pipe> for
+IPC with functional test routine
+
+=item B<-help -?>
+
+brief help message
+
+=item B<--man>
+
+full documentation
+
+=back
+
+B<ps2mail> ignores lpd filter options (that normally passed by lpd(8) when the
+filter is invoked)
+
+=head1 FILES
+
+=over
+
+=item ps2mail
+
+is an B<lpd(8)> filter program; location: /usr/local/libexec/
+
+=item ps2mail.conf
+
+is a configuration file; location: /usr/local/etc/
+
+=back
+
+=head1 REQUIREMENTS
+
+=over 4
+
+=item *
+
+Perl 5.005
+
+=item *
+
+Email::Address, Email::Valid, MIME::Lite, IO::Interactive (and their
+dependencies)
+
+=item *
+
+Ghostscript 9.21 or later (as we need B<txtwrite> device).
+
+=item *
+
+IPC::Run3 and Text::Template for functional tests (optional).
+
+=back
+
+=head1 INSTALLATION
+
+Paths in the examples below are related to FreeBSD file system hierarchy.
+Change them as needed for the distribution you are using.
+
+=over
+
+=item 1
+
+Place the B<ps2mail> script into /usr/local/libexec/ directory and make it
+executable:
+
+    # chmod 555 /usr/local/libexec/ps2mail
+
+Place the B<ps2mail.conf> configuration file into /usr/local/etc/ directory and
+edit it accordingly to your needs.
+
+=item 2
+
+Create a spooling directory:
+
+    # mkdir /var/spool/lpd/ps2mail
+    # chown daemon:daemon /var/spool/lpd/ps2mail
+    # chmod 770 /var/spool/lpd/ps2mail
+
+Optionally you may set file system space restrictions:
+
+    # echo 204800 > /var/spool/lpd/ps2mail/minfree
+
+That means 100 MB (204800 disk blocks * 512 bytes) of free disk space must
+exist on the file system to accept remote jobs.
+
+=item 3
+
+To enable the spooler add following to the /etc/printcap:
+
+    ps2mail|lp|Virtual MultiFunction Printer:\
+    	#:sh:\
+    	:lp=/dev/null:sd=/var/spool/lpd/ps2mail:lf=/var/log/lpd-errs:\
+    	:if=/usr/local/libexec/ps2mail:\
+    	:sh:sf:mx#0:
+
+=item 4
+
+Make sure hosts.lpd(5) allows to use your local print services.
+
+For instance, if you want to allow access for any host, you can add a line with
+a single B<+> character.
+
+Even in case of B<+> client host name needs to be resolvable (or you can just
+add clients to the hosts file).
+
+=item 5
+
+Create log file:
+
+    # :> /var/log/lpd-ps2mail.log
+    # chmod 640 /var/log/lpd-ps2mail.log
+
+Create /usr/local/etc/ps2mail.syslog.conf:
+
+    !lpd-ps2mail
+    *.*						/var/log/lpd-ps2mail.log
+
+Logging via syslog expects that syslogd (or equivalent) will not clobber UTF-8
+characters. It may be necessary to tell syslogd to accept C1 control characters
+unchanged, e.g. by adding a command line option "-8" to syslogd. Failing to do
+so may leave logged entries (like sender and recipient address, From, Subject)
+with UTF-8 characters in international mail garbled or poorly readable in
+syslog. On FreeBSD one should add to /etc/rc.conf:
+
+    syslogd_flags="-8" to rc.conf.
+
+Reload syslogd configuration:
+
+    # service syslogd reload
+
+Create /usr/local/etc/newsyslog.conf.d/ps2mail.newsyslog.conf:
+
+    /var/log/lpd-ps2mail.log			640  3     100	*     JC
+
+=item 6
+
+If lpd(8) is not running enable it in /etc/rc.conf:
+
+    lpd_enable="YES"
+    lpd_flags="-cW"
+
+and start it
+
+    # service lpd start
+
+=back
+
+=head1 DIAGNOSTICS
+
+If I<stdout> is connected to tty B<ps2mail> prints messages on it instead of
+syslog(3).
+
+Perl(1) prints error messages on I<stderr>. Usually B<ps2mail> invoked by
+lpd(8), so error messages should be written to the lpd(8) daemon's log file.
+
+To check dependences run B<ps2mail> from command line:
+
+    # /usr/local/libexec/ps2mail
+
+and assure there is no error messages on the tty.
+
+=head1 SEE ALSO
+
+perl(1), lpd(8), lpr(8), printcap(5), hosts.lpd(5)
+
+=head1 AVAILABILITY
+
+https://github.com/moisseev/ps2mail
+
+=head1 AUTHOR
+
+S<Alexander Moisseev E<lt>moiseev@mezonplus.ruE<gt>>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (c) 2017, Alexander Moisseev
+
+This software is licensed under the terms of the 2-Clause BSD License.
+
+For license details, see the file 'LICENSE' included with this distribution.
+
