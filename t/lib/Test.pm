@@ -118,12 +118,11 @@ EOF
 
     subtest "Log" => sub {
         foreach ( @{ $t->{log_msg} } ) {
-            my $msg = shift @_;
+            my $msg = shift @log;
             $HoT{$_}->($msg);
         }
-        is( join( '', @_ ), '', "EOF" );
-      },
-      @log;
+        is( join( '', @log ), '', "EOF" );
+    };
 }
 
 1;
