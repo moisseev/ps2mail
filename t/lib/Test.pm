@@ -17,12 +17,10 @@ our @EXPORT_OK = qw(run);
 
 use Fcntl qw(O_RDONLY O_NONBLOCK);
 use IPC::Run3;
+use IPC::Shareable ();
 use POSIX qw(mkfifo);
 use Test::More tests => 4;
 use Text::Template;
-
-# Named pipe for IPC with program under test
-my $LOG = "/var/run/ps2mail-test-$$";
 
 # Program under test
 my $cmd      = './ps2mail';
@@ -86,9 +84,9 @@ sub run {
         },
     );
 
-    mkfifo( $LOG, 700 ) || die "mkfifo $LOG failed: $!";
-    sysopen( LOG, $LOG, O_RDONLY | O_NONBLOCK )
-      || die "openinig named pipe $LOG failed: $!";
+    my $glue = substr $$, -4;
+    tie my @log, 'IPC::Shareable', $glue, { create => 1, destroy => 1 }
+      or die "cannot tie to shared memory: $!";
 
     my $stdin = $t->{ps_file}
       ? do {
@@ -112,7 +110,7 @@ sub run {
 %%[LastPage]%%
 EOF
 
-    run3( [ $cmd, '--test', $LOG, @cmd_args ], \$stdin, \$stdout, \$stderr );
+    run3( [ $cmd, '--test', $glue, @cmd_args ], \$stdin, \$stdout, \$stderr );
 
     is( ( $? >> 8 ), $t->{exit_status}, 'exit status' );
     is( $stdout, $expected_stdout, 'stdout' );
@@ -120,15 +118,12 @@ EOF
 
     subtest "Log" => sub {
         foreach ( @{ $t->{log_msg} } ) {
-            chomp( my $msg = shift @_ );
+            my $msg = shift @_;
             $HoT{$_}->($msg);
         }
         is( join( '', @_ ), '', "EOF" );
       },
-      <LOG>;
-
-    close(LOG) || die "can't close $LOG: $!";
-    unlink $LOG;
+      @log;
 }
 
 1;

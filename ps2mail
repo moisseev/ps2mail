@@ -37,10 +37,11 @@ pod2usage( -verbose => 1 ) if $opt_help;
 pod2usage( -verbose => 2 ) if $opt_man;
 
 ### IPC with functional test routine
-my $fh_log;
+my @log;
 if ($opt_test) {
-    open( $fh_log, '>', $opt_test )
-      or die "Could not open named pipe $opt_test: $!";
+    require IPC::Shareable;
+    tie @log, 'IPC::Shareable', $opt_test
+      or die "cannot tie to shared memory: $!";
 }
 
 # check some dependencies
@@ -391,7 +392,7 @@ sub log_it {
         print @_, "\n";
     }
     elsif ($opt_test) {
-        print $fh_log @_, "\n";
+        push @log, @_;
     }
     else {
         openlog( 'lpd-ps2mail', 'pid', 'user' );
@@ -409,9 +410,6 @@ sub log_and_notify {
 sub clean_up {
     unlink $ps_file || warn "Could not unlink $ps_file: $!";
     -f $pdf_file && unlink $pdf_file || warn "Could not unlink $pdf_file: $!";
-    if ($opt_test) {
-        close($fh_log) || die "Could not close named pipe $opt_test: $!";
-    }
 }
 
 sub int_handler {
@@ -430,7 +428,7 @@ ps2mail - print-to-email lpd(8) input filter
 
 =head1 SYNOPSIS
 
-B<ps2mail> [--test I<named_pipe>] [lpd filter options]
+B<ps2mail> [--test I<GLUE>] [lpd filter options]
 
 B<ps2mail> [--help|--man]
 
@@ -547,10 +545,10 @@ Simplified form is also supported.
 
 =over
 
-=item B<--test> I<named_pipe>
+=item B<--test> I<GLUE>
 
-run B<ps2mail> in functional test mode and use the specified I<named_pipe> for
-IPC with functional test routine
+run B<ps2mail> in functional test mode and tie an array of log messages to a
+shared memory segment associated with I<GLUE>.
 
 =item B<-help -?>
 
@@ -598,7 +596,7 @@ Ghostscript 9.21 or later (as we need B<txtwrite> device).
 
 =item *
 
-IPC::Run3 and Text::Template for functional tests (optional).
+IPC::Run3, IPC::Shareable and Text::Template for functional tests (optional).
 
 =back
 
