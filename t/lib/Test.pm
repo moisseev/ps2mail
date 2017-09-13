@@ -9,7 +9,7 @@
 
 package t::lib::Test;
 
-use strict;
+use 5.014;
 use warnings;
 
 use base 'Exporter';

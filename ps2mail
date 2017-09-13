@@ -1,6 +1,6 @@
 #!/usr/local/bin/perl
 
-use strict;
+use 5.014;
 use warnings;
 
 use Getopt::Long qw( :config pass_through no_auto_abbrev );
@@ -583,7 +583,7 @@ is a configuration file; location: /usr/local/etc/
 
 =item *
 
-Perl 5.005
+Perl 5.14 or later
 
 =item *
 
@@ -599,6 +599,8 @@ Ghostscript 9.21 or later (as we need B<txtwrite> device).
 IPC::Run3, IPC::Shareable and Text::Template for functional tests (optional).
 
 =back
+
+Refer to the B<cpanfile> for the complete list of required Perl modules.
 
 =head1 INSTALLATION
 
