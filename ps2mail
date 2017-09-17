@@ -65,7 +65,7 @@ print {interactive} "
  -- Dependencies ok\n";
 
 our %Conf;
-&get_config( $opt_test ? './ps2mail.conf' : CONF );
+&get_config( $opt_test ? './ps2mail.conf.sample' : CONF );
 
 print {interactive} " -- Configuration loaded
 
@@ -574,6 +574,10 @@ is an B<lpd(8)> filter program; location: /usr/local/libexec/
 =item ps2mail.conf
 
 is a configuration file; location: /usr/local/etc/
+
+=item ps2mail.conf.sample
+
+is a configuration file sample; location: /usr/local/etc/
 
 =back
 

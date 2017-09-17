@@ -4,12 +4,12 @@
 [PerlCritic]
 select = **/*.{pl,pm,t}
 select = ps2mail
-select = ps2mail.conf
+select = ps2mail.conf.sample
 
 [PerlTidy]
 select = **/*.{pl,pm,t}
 select = ps2mail
-select = ps2mail.conf
+select = ps2mail.conf.sample
 
 [PodChecker]
 select = **/*.{pl,pm,pod}
@@ -27,4 +27,4 @@ select = ps2mail
 [Test::Vars]
 select = **/*.{pl,pm,t}
 select = ps2mail
-select = ps2mail.conf
+select = ps2mail.conf.sample
