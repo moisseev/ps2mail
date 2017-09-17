@@ -1,6 +1,6 @@
 PROG        = ps2mail
 PREFIX     ?= /usr/local
-ETCDIR     ?= $(PREFIX)/etc
+ETCDIR     ?= $(PREFIX)/etc/$(PROG)
 LIBEXECDIR ?= $(PREFIX)/libexec
 
 .PHONY: all $(PROG) test install uninstall clean

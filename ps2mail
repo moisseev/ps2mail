@@ -14,10 +14,10 @@ use Pod::Usage;
 
 # CONSTANTS you must check
 use constant {
-    CONF   => '/usr/local/etc/ps2mail.conf',  # ps2mail configuration file
-    GS     => '/usr/local/bin/gs',            # GostScript interpreter
-    PS2PDF => '/usr/local/bin/ps2pdf',        # Command to convert PS to PDF
-    TMPDIR => '/tmp',                         # Directory for temporary PS files
+    CONF => '/usr/local/etc/ps2mail/ps2mail.conf',  # ps2mail configuration file
+    GS   => '/usr/local/bin/gs',                    # GostScript interpreter
+    PS2PDF => '/usr/local/bin/ps2pdf',    # Command to convert PS to PDF
+    TMPDIR => '/tmp',                     # Directory for temporary PS files
 };
 
 # CONSTANTS you can alter but should consider not to
@@ -573,11 +573,11 @@ is an B<lpd(8)> filter program; location: /usr/local/libexec/
 
 =item ps2mail.conf
 
-is a configuration file; location: /usr/local/etc/
+is a configuration file; location: /usr/local/etc/ps2mail
 
 =item ps2mail.conf.sample
 
-is a configuration file sample; location: /usr/local/etc/
+is a configuration file sample; location: /usr/local/etc/ps2mail
 
 =back
 
@@ -620,8 +620,8 @@ executable:
 
     # chmod 555 /usr/local/libexec/ps2mail
 
-Place the B<ps2mail.conf> configuration file into /usr/local/etc/ directory and
-edit it accordingly to your needs.
+Place the B<ps2mail.conf> configuration file into /usr/local/etc/ps2mail
+directory and edit it accordingly to your needs.
 
 =item 2
 
