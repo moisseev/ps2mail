@@ -7,13 +7,15 @@ LIBEXECDIR ?= $(PREFIX)/libexec
 
 all: $(PROG)
 
-$(PROG):
+$(PROG): $(PROG).bak
+
+$(PROG).bak:
 	sed -i.bak 's|/usr/local/bin/|$(PREFIX)/bin/|g' $(PROG)
 
 test: $(PROG)
 	prove
 
-install:
+install: $(PROG)
 	install -d $(DESTDIR)$(LIBEXECDIR) $(DESTDIR)$(ETCDIR) || exit 1;
 	install -m 0555 $(PROG) $(DESTDIR)$(LIBEXECDIR)/$(PROG) || exit 1;
 	install -m 0644 $(PROG).conf.sample $(DESTDIR)$(ETCDIR)/$(PROG).conf.sample || exit 1;
@@ -23,4 +25,4 @@ uninstall:
 	     $(DESTDIR)$(ETCDIR)/$(PROG).conf.sample;
 
 clean:
-	mv $(PROG).bak $(PROG)
+	-@mv $(PROG).bak $(PROG)
