@@ -18,11 +18,15 @@ test: $(PROG)
 install: $(PROG)
 	install -d $(DESTDIR)$(LIBEXECDIR) $(DESTDIR)$(ETCDIR) || exit 1;
 	install -m 0555 $(PROG) $(DESTDIR)$(LIBEXECDIR)/$(PROG) || exit 1;
-	install -m 0644 $(PROG).conf.sample $(DESTDIR)$(ETCDIR)/$(PROG).conf.sample || exit 1;
+	install -m 0644 \
+	    $(PROG).conf.sample \
+	    $(PROG).newsyslog.conf.sample \
+	    $(DESTDIR)$(ETCDIR) || exit 1;
 
 uninstall:
 	-@rm $(DESTDIR)$(LIBEXECDIR)/$(PROG) \
-	     $(DESTDIR)$(ETCDIR)/$(PROG).conf.sample;
+	     $(DESTDIR)$(ETCDIR)/$(PROG).conf.sample \
+	     $(DESTDIR)$(ETCDIR)/$(PROG).newsyslog.conf.sample
 
 clean:
 	-@mv $(PROG).bak $(PROG)

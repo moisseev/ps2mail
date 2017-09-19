@@ -1,0 +1,11 @@
+# newsyslog configuration file for ps2mail(1)
+#
+# Link (or copy) ps2mail.newsyslog.conf to /usr/local/etc/newsyslog.conf.d/
+# to take care of log rotation.
+#
+# ln -s /usr/local/etc/ps2mail/ps2mail.newsyslog.conf /usr/local/etc/newsyslog.conf.d
+#
+# See newsyslog.conf(5) for details.
+#
+# logfilename          [owner:group]    mode count size when  flags [/pid_file] [sig_num]
+/var/log/lpd-ps2mail.log		640  3     100	*     JC
