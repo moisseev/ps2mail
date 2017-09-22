@@ -1,0 +1,94 @@
+﻿version: 2
+jobs:
+  test:
+    docker:
+      - image: buildpack-deps:trusty
+    steps:
+      - run:
+          name: Exporting env vars
+          command: |
+            cat >> $BASH_ENV <<EOF
+            export PATH=$PATH:$HOME/perl5/bin
+            export PERL_CPANM_OPT=--local-lib=$HOME/perl5
+            export PERL5LIB=$HOME/perl5/lib/perl5:$PERL5LIB
+            EOF
+      - checkout
+
+      - restore_cache:
+          key: v1-ghostscript
+      - run:
+          name: Installing ghostscript
+          command: |
+            set -e
+            pushd ~/
+            if [ ! -d "ghostscript-9.21/lib" ]; then
+                wget https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs921/ghostscript-9.21.tar.gz
+                tar -xf ghostscript-9.21.tar.gz
+                pushd ghostscript-9.21 && ./configure --prefix=/usr && make && sudo make install && popd
+            else
+                echo "Using cached directory."
+                pushd ghostscript-9.21 && sudo make install && popd
+            fi
+            popd
+      - save_cache:
+          key: v1-ghostscript
+          paths:
+            - ~/ghostscript-9.21
+
+      - restore_cache:
+          key: v1-perl_modules-{{ checksum "cpanfile" }}
+      - run:
+          name: Installing cpanm
+          command: 'curl -L https://cpanmin.us | perl - App::cpanminus'
+      - run:
+          name: Installing CPAN dependencies
+          command: cpanm --quiet --installdeps --notest .
+      - save_cache:
+          key: v1-perl_modules-{{ checksum "cpanfile" }}
+          paths:
+            - ~/perl5
+
+      - run: make PREFIX=/usr
+      - run: make test
+
+  tidy:
+    docker:
+      - image: buildpack-deps:trusty
+    steps:
+      - run:
+          name: Exporting env vars
+          command: |
+            cat >> $BASH_ENV <<EOF
+            export PATH=$PATH:$HOME/perl5/bin
+            export PERL_CPANM_OPT=--local-lib=$HOME/perl5
+            export PERL5LIB=$HOME/perl5/lib/perl5:$PERL5LIB
+            EOF
+      - checkout
+
+      - restore_cache:
+          key: v4-tidyall_dependencies
+      - run:
+          name: Installing cpanm
+          command: 'curl -L https://cpanmin.us | perl - App::cpanminus'
+      - run:
+          name: Installing CPAN dependencies
+          command: |
+            cpanm --quiet --notest \
+              Code::TidyAll \
+              Code::TidyAll::Plugin::Test::Vars \
+              Perl::Critic \
+              Perl::Tidy \
+              Pod::Tidy
+      - save_cache:
+          key: v4-tidyall_dependencies
+          paths:
+            - ~/perl5
+
+      - run: tidyall -a --check-only
+
+workflows:
+  version: 2
+  test_and_tidy:
+    jobs:
+      - test
+      - tidy
