@@ -1,0 +1,56 @@
+﻿sudo: false
+env:
+  global:
+    - MAKEFLAGS="-j 2"
+
+language: perl
+perl:
+  - 5.24
+  - 5.22
+  - 5.20
+  - 5.18
+  - 5.16
+  - 5.14
+
+cache:
+  directories:
+  - ~/ghostscript-9.21
+  - ~/perl_modules
+
+before_install:
+  - cpanm --quiet --notest local::lib
+  - eval "$(perl -Mlocal::lib=~/perl_modules)"
+
+install:
+  - |
+    # Installing ghostscript
+    set -e
+    pushd ~/
+    if [ ! -d "ghostscript-9.21/lib" ]; then
+        wget https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs921/ghostscript-9.21.tar.gz
+        tar -xf ghostscript-9.21.tar.gz
+        pushd ghostscript-9.21 && ./configure --prefix=/usr && make && sudo make install && popd
+    else
+        echo "Using cached directory."
+        pushd ghostscript-9.21 && sudo make install && popd
+    fi
+    popd
+  - cpanm --quiet --installdeps --notest .
+  - make PREFIX=/usr
+
+jobs:
+  include:
+    - stage: test
+      env: TEST_SUITE=tidy
+      perl: 5.24
+
+      install: |
+        # Installing CPAN dependencies
+        cpanm --quiet --notest \
+        Code::TidyAll \
+        Code::TidyAll::Plugin::Test::Vars \
+        Perl::Critic \
+        Perl::Tidy \
+        Pod::Tidy
+
+      script: tidyall -a --check-only
