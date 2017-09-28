@@ -43,7 +43,7 @@
       Email::Address->new( 'ps2mail lpd filter', 'ps2mail@example.org' ),
 
     subject_notification =>
-      '🔺 Не удалось отправить / Failed to send',
+      '⚠️ Не удалось отправить / Failed to send',
 
     subject =>
 'Заказанная корреспонденция / Ordered correspondence',
