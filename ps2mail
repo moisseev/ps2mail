@@ -8,8 +8,10 @@ use Encode qw/encode decode/;
 use Email::Address;
 use Email::Valid;
 use IO::Interactive qw(is_interactive interactive);
+use Locale::gettext;
 use MIME::Lite;
 use Sys::Syslog;
+use POSIX qw( setlocale  LC_ALL );
 use Pod::Usage;
 
 # CONSTANTS you must check
@@ -84,6 +86,11 @@ log_it("print job: @ARGV");
 
 &save_postscript_data;
 
+### Environment variable is required for BSD, setlocale function for Linux
+$ENV{LC_ALL} = setlocale( LC_ALL, $Conf{locale} )
+  if $Conf{locale};
+textdomain("ps2mail");
+
 system( PS2PDF, '-sstdout=%stdout', $ps_file, $pdf_file ) == 0
   or &abort_job("ps2pdf failed: $?");
 
@@ -112,8 +119,8 @@ exit 0;       # The filter printed the file successfully
 #===============================================================================
 
 sub abort_job {
-    my ($msg) = @_;
-    &log_and_notify( 'error', "job aborted: $msg" );
+    my ( $msg, $descr ) = @_;
+    &log_and_notify( 'error', "job aborted: $msg", $descr );
     &clean_up;
 
     # The filter failed to print and does not want LPD to try again.
@@ -238,14 +245,18 @@ sub get_to {
 sub check_email {
     my ($address) = @_;
 
-    &abort_job("invalid address: $address ($Email::Valid::Details)")
-      unless (
+    unless (
         Email::Valid->address(
             -address  => $address,
             -tldcheck => 1,
             -mxcheck  => 1,
         )
-      );
+      )
+    {
+        my $descr = "descr_$Email::Valid::Details";
+        &abort_job( "invalid address: $address ($Email::Valid::Details)",
+            gettext($descr) );
+    }
 }
 
 # say &invalid_email('moiseev@mezonplus.ru');
@@ -402,8 +413,10 @@ sub log_it {
 }
 
 sub log_and_notify {
-    my ( $type, $msg ) = @_;
+    my ( $type, $msg, $descr ) = @_;
     log_it($msg);
+    $msg .= "\n\n$descr"
+      if $descr;
     &send_mail( $type, $Conf{subject_notification}, $msg );
 }
 
@@ -417,6 +430,16 @@ sub int_handler {
     log_it("\nCaught $signal signal. Shutting down.");
     &clean_up;
     die "$!\n";
+}
+
+### Dummy subroutine for exposing msgids of dynamic messages to xgettext
+sub dynamic_msgids {
+    gettext('descr_rfc822');
+    gettext('descr_localpart');
+    gettext('descr_local_rules');
+    gettext('descr_fqdn');
+    gettext('descr_mxcheck');
+    gettext('descr_tldcheck');
 }
 
 __END__
@@ -591,8 +614,8 @@ Perl 5.14 or later
 
 =item *
 
-Email::Address, Email::Valid, MIME::Lite, IO::Interactive (and their
-dependencies)
+Email::Address, Email::Valid, MIME::Lite, IO::Interactive, Locale::gettext (and
+their dependencies)
 
 =item *
 

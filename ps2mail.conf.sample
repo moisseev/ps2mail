@@ -42,6 +42,8 @@
     default_from =>
       Email::Address->new( 'ps2mail lpd filter', 'ps2mail@example.org' ),
 
+    locale => 'ru_RU.UTF-8',    # Language of notification e-mails
+
     subject_notification =>
       '⚠️ Не удалось отправить / Failed to send',
 

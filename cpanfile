@@ -1,6 +1,7 @@
 requires 'Email::Address';
 requires 'Email::Valid', '== 1.200';
 requires 'IO::Interactive';
+requires 'Locale::gettext';
 requires 'MIME::Lite';
 requires 'Net::Domain::TLD';
 requires 'Net::DNS';
