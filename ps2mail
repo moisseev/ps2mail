@@ -248,8 +248,13 @@ sub check_email {
         )
       )
     {
-        my $descr = "descr_$Email::Valid::Details";
-        &abort_job( "invalid address: $address ($Email::Valid::Details)", gettext($descr) );
+        my %descr = (
+            fqdn     => gettext('Address must contain a fully qualified domain name (FQDN).'),
+            mxcheck  => gettext('Address should have a valid DNS entry (MX or A).'),
+            tldcheck => gettext('Address should have a valid top level domains.'),
+        );
+        &abort_job( "invalid address: $address ($Email::Valid::Details)",
+            $descr{$Email::Valid::Details} );
     }
 }
 
@@ -415,16 +420,6 @@ sub int_handler {
     log_it("\nCaught $signal signal. Shutting down.");
     &clean_up;
     die "$!\n";
-}
-
-### Dummy subroutine for exposing msgids of dynamic messages to xgettext
-sub dynamic_msgids {
-    gettext('descr_rfc822');
-    gettext('descr_localpart');
-    gettext('descr_local_rules');
-    gettext('descr_fqdn');
-    gettext('descr_mxcheck');
-    gettext('descr_tldcheck');
 }
 
 __END__
