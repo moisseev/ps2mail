@@ -36,9 +36,8 @@ my $templates = {
     },
     good => {
         tag_start => '0(ojo)0 {',
-        meta =>
-'From: From name <from@mailinator.com> To: To name <rcpt@mailinator.com>',
-        tag_end => '}',
+        meta      => 'From: From name <from@mailinator.com> To: To name <rcpt@mailinator.com>',
+        tag_end   => '}',
 
         exit_status => 0,
         log_msg     => [ 'job', 'meta', 'sm_delivery' ],

@@ -6,7 +6,6 @@ use t::lib::Test qw(run);
 run(
     'good',
     {
-        meta =>
-'from: From name <from@mailinator.com> to: To name <rcpt@mailinator.com>',
+        meta => 'from: From name <from@mailinator.com> to: To name <rcpt@mailinator.com>',
     }
 );

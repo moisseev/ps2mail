@@ -16,17 +16,17 @@ use Pod::Usage;
 
 # CONSTANTS you must check
 use constant {
-    CONF => '/usr/local/etc/ps2mail/ps2mail.conf',  # ps2mail configuration file
-    GS   => '/usr/local/bin/gs',                    # GostScript interpreter
-    PS2PDF => '/usr/local/bin/ps2pdf',    # Command to convert PS to PDF
-    TMPDIR => '/tmp',                     # Directory for temporary PS files
+    CONF   => '/usr/local/etc/ps2mail/ps2mail.conf',    # ps2mail configuration file
+    GS     => '/usr/local/bin/gs',                      # GostScript interpreter
+    PS2PDF => '/usr/local/bin/ps2pdf',                  # Command to convert PS to PDF
+    TMPDIR => '/tmp',                                   # Directory for temporary PS files
 };
 
 # CONSTANTS you can alter but should consider not to
-my $mail_from_tag = 'From\s?\:';    # the string to look for an emailaddress
-my $mail_to_tag   = 'To\s?\:';      # the string to look for an emailaddress
-my $ps_file  = TMPDIR . "/ps2mail.$$.ps";     # temporary postscript file
-my $pdf_file = TMPDIR . "/ps2mail.$$.pdf";    # temporary pdf file
+my $mail_from_tag = 'From\s?\:';                        # the string to look for an emailaddress
+my $mail_to_tag   = 'To\s?\:';                          # the string to look for an emailaddress
+my $ps_file       = TMPDIR . "/ps2mail.$$.ps";          # temporary postscript file
+my $pdf_file      = TMPDIR . "/ps2mail.$$.pdf";         # temporary pdf file
 
 ####### from here on, leave the code alone, unless you are really sure #########
 
@@ -100,8 +100,7 @@ unless ( &get_metadata( $Conf{start_tag}, $Conf{end_tag} ) ) {
     log_it("tags not found, searching for fallback tags");
 
     &abort_job('fallback tags not found')
-      unless (
-        &get_metadata( $Conf{fallback_start_tag}, $Conf{fallback_end_tag} ) );
+      unless ( &get_metadata( $Conf{fallback_start_tag}, $Conf{fallback_end_tag} ) );
     $is_fallback = 1;
 }
 
@@ -192,9 +191,7 @@ sub get_mail_from {
 
     # Take the 1st found only, ignore the rest.
     # Remove trailing and leading spaces.
-    if ( $metadata =~
-/$mail_from_tag\s*($Email::Address::addr_spec|$Email::Address::name_addr)/i
-      )
+    if ( $metadata =~ /$mail_from_tag\s*($Email::Address::addr_spec|$Email::Address::name_addr)/i )
     {
         my $detected_from = ( Email::Address->parse($1) )[0];
 
@@ -217,9 +214,7 @@ sub get_to {
     # Search for simplified or fallback "mail to",
     # remove trailing and leading spaces.
     if ( @to_str =
-        $metadata =~
-        /^\s*$fallback_tag((?:$Email::Address::addr_spec(?:\s*[,;]\s*)?)+)\s*$/i
-      )
+        $metadata =~ /^\s*$fallback_tag((?:$Email::Address::addr_spec(?:\s*[,;]\s*)?)+)\s*$/i )
     {
         $format = 'simple';
     }
@@ -254,8 +249,7 @@ sub check_email {
       )
     {
         my $descr = "descr_$Email::Valid::Details";
-        &abort_job( "invalid address: $address ($Email::Valid::Details)",
-            gettext($descr) );
+        &abort_job( "invalid address: $address ($Email::Valid::Details)", gettext($descr) );
     }
 }
 
@@ -277,11 +271,8 @@ sub send_mail {
     ### For errors sender's display name is lpd filter,
     ### sender's address is default_from and recipient is job originator
     if ( $type ne 'delivery' ) {
-        @to   = ($from);
-        $from = Email::Address->new(
-            'ps2mail lpd filter',
-            $Conf{default_from}->address,
-        );
+        @to = ($from);
+        $from = Email::Address->new( 'ps2mail lpd filter', $Conf{default_from}->address, );
     }
 
     ### Encode headers
@@ -302,14 +293,9 @@ sub send_mail {
         ? $from->phrase . ' <' . $from->address . '>'
         : $from->address,
 
-        To => join(
-            ', ',
-            map {
-                ( defined $_->phrase )
-                  ? $_->phrase . ' <' . $_->address . '>'
-                  : $_->address;
-            } @to
-        ),
+        To => join( ', ',
+            map { ( defined $_->phrase ) ? $_->phrase . ' <' . $_->address . '>' : $_->address; }
+              @to ),
         Subject => $subject,
         Type    => 'multipart/mixed',
     );
@@ -338,8 +324,7 @@ sub send_mail {
           if $Conf{dsn};
 
         if ( $Conf{bcc2sender} ) {
-            my $bcc_addr =
-              $from->address =~ s/(?:[+].+)?@/+$Conf{bccExtension}@/r;
+            my $bcc_addr = $from->address =~ s/(?:[+].+)?@/+$Conf{bccExtension}@/r;
             if ( $Conf{dsn} ) {
 
                 # Send a message to Bcc recipient separately to avoid DSN.
