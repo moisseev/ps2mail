@@ -13,6 +13,9 @@ jobs:
             export PERL5LIB=$HOME/perl5/lib/perl5:$PERL5LIB
             EOF
       - checkout
+      - run:
+          name: Installing gettext
+          command: sudo apt-get -qq update; sudo apt-get -qq install gettext
 
       - restore_cache:
           key: v1-ghostscript
