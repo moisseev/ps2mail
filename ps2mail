@@ -104,9 +104,7 @@ unless ( &get_metadata( $Conf{start_tag}, $Conf{end_tag} ) ) {
     $is_fallback = 1;
 }
 
-my ( $format, @to ) = &get_to;
-$from = &get_mail_from
-  if ( $format eq 'full' );
+my @to = &get_to;
 
 &send_mail( 'delivery', $Conf{subject}, $Conf{body} );
 
@@ -207,17 +205,16 @@ sub get_mail_from {
 }
 
 sub get_to {
-    my ( @to_str, $format );
+    my @to_str;
     my $fallback_tag = $is_fallback ? $Conf{mail_to_fallback_tag} : '';
 
     # Search for simplified or fallback "mail to",
     # remove trailing and leading spaces.
-    if ( @to_str = $metadata =~ /^\s*$fallback_tag((?:$Email::Address::addr_spec(?:\s*[,;]\s*)?)+)\s*$/i ) {
-        $format = 'simple';
-    }
-    else {
+    unless ( @to_str = $metadata =~ /^\s*$fallback_tag((?:$Email::Address::addr_spec(?:\s*[,;]\s*)?)+)\s*$/i ) {
         &abort_job('could not extract mail recipient (simple)')
           if $is_fallback;
+
+        $from = &get_mail_from;
 
         # The regexp with /g modifier returns content of muitiple To: as a list
         @to_str = $metadata =~
@@ -225,13 +222,11 @@ sub get_to {
 
         &abort_job('could not extract mail recipient (full)')
           unless (@to_str);
-
-        $format = 'full';
     }
 
     my @tos = Email::Address->parse( join( ',', @to_str ) );
     &check_email( $_->address ) foreach (@tos);
-    return ( $format, @tos );
+    return @tos;
 }
 
 sub check_email {
