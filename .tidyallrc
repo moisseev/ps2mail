@@ -10,7 +10,7 @@ select = ps2mail.conf.sample
 select = **/*.{pl,pm,t}
 select = ps2mail
 select = ps2mail.conf.sample
-argv = -l=100
+argv = -l=120
 
 [PodChecker]
 select = **/*.{pl,pm,pod}
