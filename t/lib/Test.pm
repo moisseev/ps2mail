@@ -33,6 +33,7 @@ my $templates = {
 
         exit_status => 2,
         log_msg     => [ 'job', 'meta', 'aborted', 'sm_error' ],
+        sm_to       => 'from@mailinator.com',
     },
     good => {
         tag_start => '0(ojo)0 {',
@@ -79,7 +80,8 @@ sub run {
             like( $_[0], qr/sendmail\(delivery\): from/, $_[0] );
         },
         sm_error => sub {
-            like( $_[0], qr/sendmail\(error\): from/, $_[0] );
+            is( $_[0], 'sendmail(error): from=ps2mail@example.org, to=' . $t->{sm_to} . ', rcpt=1, status=sent',
+                $_[0] );
         },
     );
 
