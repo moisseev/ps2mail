@@ -39,7 +39,7 @@
     ### E-mail parts options
 
     # Use this address unless "From:" is recognized:
-    default_from => Email::Address->new( 'ps2mail lpd filter', 'ps2mail@example.org' ),
+    default_from => Email::Address::XS->new( 'ps2mail lpd filter', 'ps2mail@example.org' ),
 
     locale => 'ru_RU.UTF-8',    # Language of notification e-mails
 

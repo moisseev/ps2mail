@@ -1,4 +1,4 @@
-requires 'Email::Address';
+requires 'Email::Address::XS';
 requires 'Email::Valid', '== 1.200';
 requires 'IO::Interactive';
 requires 'Locale::gettext';
