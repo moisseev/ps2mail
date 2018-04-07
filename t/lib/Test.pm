@@ -7,7 +7,7 @@
 # This software is licensed under the terms of the 2-Clause BSD License.
 #
 
-package t::lib::Test;
+package Test;
 
 use 5.014;
 use warnings;
