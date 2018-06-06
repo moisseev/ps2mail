@@ -292,7 +292,9 @@ sub send_mail {
         Type    => 'multipart/mixed',
     );
 
-    $msg->add( 'Disposition-Notification-To' => $from->address ) if $Conf{mdn};
+    if ( $type eq 'delivery' ) {
+        $msg->add( 'Disposition-Notification-To' => $from->address ) if $Conf{mdn};
+    }
 
     ### Add the text message part:
     utf8::upgrade($body);
