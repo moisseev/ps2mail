@@ -41,6 +41,9 @@
     # Use this address unless "From:" is recognized:
     default_from => Email::Address::XS->new( 'ps2mail lpd filter', 'ps2mail@example.org' ),
 
+    # Add "Reply-To:" header (optional, comment out this line to disable)
+    reply_to => Email::Address::XS->new( 'Feedback', 'ps2mail+replies@example.org' ),
+
     locale => 'ru_RU.UTF-8',    # Language of notification e-mails
 
     subject_notification => '⚠️ Не удалось отправить / Failed to send',

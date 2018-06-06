@@ -278,9 +278,9 @@ sub send_mail {
           unless /[^\x00-\x7f]/;    # There are no non-ascii characters
         $_ = encode( 'MIME-Header', decode( 'UTF-8', $_ ) );
     }
-    foreach ( $from, @to ) {
+    foreach ( $from, @to, $Conf{reply_to} ) {
         next
-          unless /[^\x00-\x7f]/;    # There are no non-ascii characters
+          unless $_ && /[^\x00-\x7f]/;    # There are no non-ascii characters
         $_->phrase( encode( 'MIME-Header', decode( 'UTF-8', $_->phrase ) ) );
     }
 
@@ -293,6 +293,7 @@ sub send_mail {
     );
 
     if ( $type eq 'delivery' ) {
+        $msg->add( 'Reply-To' => format_email_addresses( $Conf{reply_to} ) ) if $Conf{reply_to};
         $msg->add( 'Disposition-Notification-To' => $from->address ) if $Conf{mdn};
     }
 
