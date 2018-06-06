@@ -5,7 +5,7 @@ use warnings;
 
 use Getopt::Long qw( :config pass_through no_auto_abbrev );
 use Encode qw/encode decode/;
-use Email::Address::XS;
+use Email::Address::XS qw(format_email_addresses);
 use Email::Valid;
 use IO::Interactive qw(is_interactive interactive);
 use Locale::gettext;
@@ -286,11 +286,8 @@ sub send_mail {
 
     ### Create the multipart "container":
     my $msg = MIME::Lite->new(
-        From => ( defined $from->phrase )
-        ? $from->phrase . ' <' . $from->address . '>'
-        : $from->address,
-
-        To => join( ', ', map { ( defined $_->phrase ) ? $_->phrase . ' <' . $_->address . '>' : $_->address; } @to ),
+        From    => format_email_addresses( ($from) ),
+        To      => format_email_addresses(@to),
         Subject => $subject,
         Type    => 'multipart/mixed',
     );
