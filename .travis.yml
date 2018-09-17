@@ -5,6 +5,7 @@ env:
 
 language: perl
 perl:
+  - 5.26
   - 5.24
   - 5.22
   - 5.20
@@ -14,7 +15,7 @@ perl:
 
 cache:
   directories:
-  - ~/ghostscript-9.23
+  - ~/ghostscript-9.24
   - ~/perl_modules
 
 before_install:
@@ -26,13 +27,13 @@ install:
     # Installing ghostscript
     set -e
     pushd ~/
-    if [ ! -d "ghostscript-9.23/lib" ]; then
-        wget https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs923/ghostscript-9.23.tar.gz
-        tar -xf ghostscript-9.23.tar.gz
-        pushd ghostscript-9.23 && ./configure --prefix=/usr && make && sudo make install && popd
+    if [ ! -d "ghostscript-9.24/lib" ]; then
+        wget https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs924/ghostscript-9.24.tar.gz
+        tar -xf ghostscript-9.24.tar.gz
+        pushd ghostscript-9.24 && ./configure --prefix=/usr && make && sudo make install && popd
     else
         echo "Using cached directory."
-        pushd ghostscript-9.23 && sudo make install && popd
+        pushd ghostscript-9.24 && sudo make install && popd
     fi
     popd
   - cpanm --quiet --installdeps --notest .
@@ -42,7 +43,7 @@ jobs:
   include:
     - stage: test
       env: TEST_SUITE=tidy
-      perl: 5.24
+      perl: 5.26
 
       install: |
         # Installing CPAN dependencies
