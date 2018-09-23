@@ -6,7 +6,7 @@ use lib "$FindBin::Bin/lib";
 
 use Test qw(run);
 
-use constant TO => 'to@example.org';
+use constant TO => 'to@test.ru';
 
 run(
     'bad',

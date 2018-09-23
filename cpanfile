@@ -1,5 +1,5 @@
 requires 'Email::Address::XS';
-requires 'Email::Valid', '== 1.200';
+requires 'Email::Valid';
 requires 'IO::Interactive';
 requires 'Locale::gettext';
 requires 'MIME::Lite';
