@@ -17,6 +17,7 @@ po/ru.mo:
 	msgfmt -o po/ru.mo po/ru.po
 
 test: $(PROG)
+	prove -V
 	prove
 
 install: $(PROG) po/ru.mo
