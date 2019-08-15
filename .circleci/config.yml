@@ -87,7 +87,14 @@ jobs:
           paths:
             - ~/perl5
 
-      - run: tidyall -a --check-only
+      - run:
+          name: Running tidyall
+          command: |
+            set -e
+            tidyall --version
+            perltidy --version | head -1
+            perlcritic --version
+            tidyall -a --check-only
 
 workflows:
   version: 2
