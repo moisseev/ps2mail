@@ -2,7 +2,7 @@ version: 2
 jobs:
   test:
     docker:
-      - image: buildpack-deps:bionic
+      - image: buildpack-deps:sid
     steps:
       - run:
           name: Exporting env vars
@@ -18,7 +18,7 @@ jobs:
           command: apt-get -qq update; apt-get -qq install gettext
 
       - restore_cache:
-          key: v6-ghostscript
+          key: v8-ghostscript
       - run:
           name: Installing ghostscript
           command: |
@@ -34,12 +34,12 @@ jobs:
             fi
             popd
       - save_cache:
-          key: v6-ghostscript
+          key: v8-ghostscript
           paths:
             - ~/ghostscript-9.27
 
       - restore_cache:
-          key: v2-perl_modules-{{ checksum "cpanfile" }}
+          key: v4-perl_modules-{{ checksum "cpanfile" }}
       - run:
           name: Installing cpanm
           command: 'curl -L https://cpanmin.us | perl - App::cpanminus'
@@ -47,7 +47,7 @@ jobs:
           name: Installing CPAN dependencies
           command: cpanm --quiet --installdeps --notest .
       - save_cache:
-          key: v2-perl_modules-{{ checksum "cpanfile" }}
+          key: v4-perl_modules-{{ checksum "cpanfile" }}
           paths:
             - ~/perl5
 
@@ -56,7 +56,7 @@ jobs:
 
   tidy:
     docker:
-      - image: buildpack-deps:bionic
+      - image: buildpack-deps:sid
     steps:
       - run:
           name: Exporting env vars
@@ -69,7 +69,7 @@ jobs:
       - checkout
 
       - restore_cache:
-          key: v5-tidyall_dependencies
+          key: v7-tidyall_dependencies
       - run:
           name: Installing cpanm
           command: 'curl -L https://cpanmin.us | perl - App::cpanminus'
@@ -83,7 +83,7 @@ jobs:
               Perl::Tidy \
               Pod::Tidy
       - save_cache:
-          key: v5-tidyall_dependencies
+          key: v7-tidyall_dependencies
           paths:
             - ~/perl5
 
