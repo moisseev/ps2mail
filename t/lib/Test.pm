@@ -114,8 +114,8 @@ EOF
     run3( [ $cmd, '--test', $glue, @cmd_args ], \$stdin, \$stdout, \$stderr );
 
     is( ( $? >> 8 ), $t->{exit_status}, 'exit status' );
-    is( $stdout, $expected_stdout, 'stdout' );
-    is( $stderr, '', 'stderr' );
+    is( $stdout,     $expected_stdout,  'stdout' );
+    is( $stderr,     '',                'stderr' );
 
     subtest "Log" => sub {
         foreach ( @{ $t->{log_msg} } ) {

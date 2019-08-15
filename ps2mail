@@ -268,7 +268,7 @@ sub send_mail {
     ### For errors sender's display name is lpd filter,
     ### sender's address is default_from and recipient is job originator
     if ( $type ne 'delivery' ) {
-        @to = ($from);
+        @to   = ($from);
         $from = Email::Address::XS->new( 'ps2mail lpd filter', $Conf{default_from}->address, );
     }
 
@@ -323,7 +323,7 @@ sub send_mail {
             if ( $Conf{dsn} ) {
 
                 # Send a message to Bcc recipient separately to avoid DSN.
-                $bcc_log = "bcc(apart)=$bcc_addr, ";
+                $bcc_log    = "bcc(apart)=$bcc_addr, ";
                 $bcc_status = '/' . &send_by_sendmail( $msg, $bcc_addr );
             }
             else {
