@@ -2,7 +2,7 @@ version: 2
 jobs:
   test:
     docker:
-      - image: buildpack-deps:trusty
+      - image: buildpack-deps:bionic
     steps:
       - run:
           name: Exporting env vars
@@ -15,10 +15,10 @@ jobs:
       - checkout
       - run:
           name: Installing gettext
-          command: sudo apt-get -qq update; sudo apt-get -qq install gettext
+          command: apt-get -qq update; apt-get -qq install gettext
 
       - restore_cache:
-          key: v5-ghostscript
+          key: v6-ghostscript
       - run:
           name: Installing ghostscript
           command: |
@@ -27,19 +27,19 @@ jobs:
             if [ ! -d "ghostscript-9.27/lib" ]; then
                 wget https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs927/ghostscript-9.27.tar.gz
                 tar -xf ghostscript-9.27.tar.gz
-                pushd ghostscript-9.27 && ./configure --prefix=/usr && make && sudo make install && popd
+                pushd ghostscript-9.27 && ./configure --prefix=/usr && make && make install && popd
             else
                 echo "Using cached directory."
-                pushd ghostscript-9.27 && sudo make install && popd
+                pushd ghostscript-9.27 && make install && popd
             fi
             popd
       - save_cache:
-          key: v5-ghostscript
+          key: v6-ghostscript
           paths:
             - ~/ghostscript-9.27
 
       - restore_cache:
-          key: v1-perl_modules-{{ checksum "cpanfile" }}
+          key: v2-perl_modules-{{ checksum "cpanfile" }}
       - run:
           name: Installing cpanm
           command: 'curl -L https://cpanmin.us | perl - App::cpanminus'
@@ -47,7 +47,7 @@ jobs:
           name: Installing CPAN dependencies
           command: cpanm --quiet --installdeps --notest .
       - save_cache:
-          key: v1-perl_modules-{{ checksum "cpanfile" }}
+          key: v2-perl_modules-{{ checksum "cpanfile" }}
           paths:
             - ~/perl5
 
@@ -56,7 +56,7 @@ jobs:
 
   tidy:
     docker:
-      - image: buildpack-deps:trusty
+      - image: buildpack-deps:bionic
     steps:
       - run:
           name: Exporting env vars
@@ -69,7 +69,7 @@ jobs:
       - checkout
 
       - restore_cache:
-          key: v4-tidyall_dependencies
+          key: v5-tidyall_dependencies
       - run:
           name: Installing cpanm
           command: 'curl -L https://cpanmin.us | perl - App::cpanminus'
@@ -83,7 +83,7 @@ jobs:
               Perl::Tidy \
               Pod::Tidy
       - save_cache:
-          key: v4-tidyall_dependencies
+          key: v5-tidyall_dependencies
           paths:
             - ~/perl5
 
