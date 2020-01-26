@@ -293,8 +293,8 @@ sub send_mail {
     );
 
     if ( $type eq 'delivery' ) {
-        $msg->add( 'Reply-To' => format_email_addresses( $Conf{reply_to} ) ) if $Conf{reply_to};
-        $msg->add( 'Disposition-Notification-To' => $from->address ) if $Conf{mdn};
+        $msg->add( 'Reply-To'                    => format_email_addresses( $Conf{reply_to} ) ) if $Conf{reply_to};
+        $msg->add( 'Disposition-Notification-To' => $from->address )                            if $Conf{mdn};
     }
 
     ### Add the text message part:
@@ -401,7 +401,7 @@ sub log_and_notify {
 }
 
 sub clean_up {
-    unlink $ps_file || warn "Could not unlink $ps_file: $!";
+    unlink $ps_file                  || warn "Could not unlink $ps_file: $!";
     -f $pdf_file && unlink $pdf_file || warn "Could not unlink $pdf_file: $!";
 }
 
