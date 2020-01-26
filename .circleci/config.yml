@@ -18,25 +18,25 @@ jobs:
           command: apt-get -qq update; apt-get -qq install gettext
 
       - restore_cache:
-          key: v8-ghostscript
+          key: v9-ghostscript
       - run:
           name: Installing ghostscript
           command: |
             set -e
             pushd ~/
-            if [ ! -d "ghostscript-9.27/lib" ]; then
-                wget https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs927/ghostscript-9.27.tar.gz
-                tar -xf ghostscript-9.27.tar.gz
-                pushd ghostscript-9.27 && ./configure --prefix=/usr && make && make install && popd
+            if [ ! -d "ghostscript-9.50/lib" ]; then
+                wget https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs950/ghostscript-9.50.tar.gz
+                tar -xf ghostscript-9.50.tar.gz
+                pushd ghostscript-9.50 && ./configure --prefix=/usr && make && make install && popd
             else
                 echo "Using cached directory."
-                pushd ghostscript-9.27 && make install && popd
+                pushd ghostscript-9.50 && make install && popd
             fi
             popd
       - save_cache:
-          key: v8-ghostscript
+          key: v9-ghostscript
           paths:
-            - ~/ghostscript-9.27
+            - ~/ghostscript-9.50
 
       - restore_cache:
           key: v4-perl_modules-{{ checksum "cpanfile" }}
