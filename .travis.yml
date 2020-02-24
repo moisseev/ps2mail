@@ -1,17 +1,12 @@
-﻿sudo: false
-env:
+﻿env:
   global:
     - MAKEFLAGS="-j 2"
 
 language: perl
 perl:
-  - 5.26
-  - 5.24
-  - 5.22
-  - 5.20
-  - 5.18
-  - 5.16
-  - 5.14
+   - 5.30
+   - 5.28
+   - 5.14
 
 cache:
   directories:
@@ -38,12 +33,14 @@ install:
     popd
   - cpanm --quiet --installdeps --notest .
   - make PREFIX=/usr
+  # Use perlbrew Perl instead of system one.
+  - sed -i "s|^#!/usr/bin/perl$|#!/usr/bin/env perl|" ./ps2mail
 
 jobs:
   include:
     - stage: test
       env: TEST_SUITE=tidy
-      perl: 5.26
+      perl: 5.30
 
       install: |
         # Installing CPAN dependencies
