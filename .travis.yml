@@ -1,16 +1,15 @@
 ﻿env:
   global:
-    - MAKEFLAGS="-j 2"
+    - MAKEFLAGS="-j $(nproc)"
 
 language: perl
 perl:
    - 5.30
    - 5.28
-   - 5.14
 
 cache:
   directories:
-  - ~/ghostscript-9.25
+  - ~/ghostscript-9.52
   - ~/perl_modules
 
 before_install:
@@ -22,13 +21,13 @@ install:
     # Installing ghostscript
     set -e
     pushd ~/
-    if [ ! -d "ghostscript-9.25/lib" ]; then
-        wget https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs925/ghostscript-9.25.tar.gz
-        tar -xf ghostscript-9.25.tar.gz
-        pushd ghostscript-9.25 && ./configure --prefix=/usr && make && sudo make install && popd
+    if [ ! -d "ghostscript-9.52/lib" ]; then
+        wget https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs952/ghostscript-9.52.tar.gz
+        tar -xf ghostscript-9.52.tar.gz
+        pushd ghostscript-9.52 && ./configure --prefix=/usr && make && sudo make install && popd
     else
         echo "Using cached directory."
-        pushd ghostscript-9.25 && sudo make install && popd
+        pushd ghostscript-9.52 && sudo make install && popd
     fi
     popd
   - cpanm --quiet --installdeps --notest .
@@ -51,4 +50,4 @@ jobs:
         Perl::Tidy \
         Pod::Tidy
 
-      script: tidyall -a --check-only
+      script: tidyall -a --check-only || ( tidyall -a && git diff && false )
