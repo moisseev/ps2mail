@@ -42,7 +42,7 @@ pod2usage( -verbose => 2 ) if $opt_man;
 my @log;
 if ($opt_test) {
     require IPC::Shareable;
-    tie @log, 'IPC::Shareable', $opt_test
+    tie @log, 'IPC::Shareable', { key => $opt_test, create => 1 }
       or die "cannot tie to shared memory: $!";
 }
 
