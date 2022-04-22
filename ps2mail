@@ -23,15 +23,15 @@ use constant {
 };
 
 # CONSTANTS you can alter but should consider not to
-my $mail_from_tag = 'From\s?\:';                        # the string to look for an emailaddress
-my $mail_to_tag   = 'To\s?\:';                          # the string to look for an emailaddress
-my $ps_file       = TMPDIR . "/ps2mail.$$.ps";          # temporary postscript file
-my $pdf_file      = TMPDIR . "/ps2mail.$$.pdf";         # temporary pdf file
+my $mail_from_tag = 'From\s?\:';                   # the string to look for an emailaddress
+my $mail_to_tag   = 'To\s?\:';                     # the string to look for an emailaddress
+my $ps_file       = TMPDIR . "/ps2mail.$$.ps";     # temporary postscript file
+my $pdf_file      = TMPDIR . "/ps2mail.$$.pdf";    # temporary pdf file
 
 ####### from here on, leave the code alone, unless you are really sure #########
 
-my $metadata    = '';                                   # raw metadata (text between start and end tags)
-my $is_fallback = 0;                                    # Fallback tags were used
+my $metadata    = '';                              # raw metadata (text between start and end tags)
+my $is_fallback = 0;                               # Fallback tags were used
 
 our ( $opt_test, $opt_help, $opt_man );
 GetOptions( 'test=s', 'help|?', 'man' );
