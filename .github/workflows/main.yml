@@ -1,0 +1,62 @@
+name: main
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  tidy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Installing cpanm
+        run: 'curl -L https://cpanmin.us | sudo perl - App::cpanminus'
+      - name: Installing CPAN dependencies
+        run: |
+            cpanm --sudo --quiet --notest \
+              Code::TidyAll \
+              Code::TidyAll::Plugin::Test::Vars \
+              Perl::Critic \
+              Perl::Tidy \
+              Pod::Tidy
+      - name: Running tidyall check
+        run: |
+            set -e
+            tidyall --version
+            perltidy --version | head -1
+            perlcritic --version
+            tidyall -a --check-only
+      - name: Needs tidying
+        if: failure()
+        # Exit status is forced to expand command output in the job log
+        run: tidyall -a && git --no-pager diff --color && false
+
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        perl: [ '5', '5.32' ]
+
+    name: Perl ${{ matrix.perl }}
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Perl environment
+        uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: ${{ matrix.perl }}
+          multi-thread: true
+          install-modules-with: cpanm
+          install-modules-args: --verbose
+
+      - name: Add path for C modules
+        run: echo "PERL5LIB=${{env.PERL5LIB}}:./local/lib/perl5/x86_64-linux-thread-multi" >> $GITHUB_ENV
+
+      - name: Installing dependencies
+        run: sudo apt-get -qq update; sudo apt-get -qq install gettext ghostscript
+
+      - run: make PREFIX=/usr
+      - name: Replace shebang
+        run: sed -i.bak 's|/bin/perl|/bin/env perl|' ps2mail
+      - run: make test
