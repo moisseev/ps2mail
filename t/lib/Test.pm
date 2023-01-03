@@ -18,7 +18,7 @@ our @EXPORT_OK = qw(run);
 use Fcntl qw(O_RDONLY O_NONBLOCK);
 use IPC::Run3;
 use IPC::Shareable ();
-use POSIX qw(mkfifo);
+use POSIX          qw(mkfifo);
 use Test::More tests => 4;
 use Text::Template;
 
